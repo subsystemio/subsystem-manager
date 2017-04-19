@@ -1,0 +1,17 @@
+{
+	"name": "Hello World",
+	"version": "0.1",
+	"hash": {
+		"source": "123",
+		"build": "123"
+	},
+	"api": {},
+	"requirements": [{
+		"name": "hello",
+		"version": "0.1"
+	}, {
+		"name": "world",
+		"version": "0.1"
+	}],
+	"limit": 1
+}
