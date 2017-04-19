@@ -1,7 +1,7 @@
 # subsystem.io
 Tool and libs for easy deployment of robot subsytems.
 
-## Highyly work in progress and still in research phase for best functionality.
+## Highly work in progress and still in research phase for best functionality.
 
 # Subsystem
 
