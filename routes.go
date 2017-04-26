@@ -1,30 +1,23 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"log"
 	"os/exec"
-	"strings"
 
 	"github.com/subsystemio/subsystem"
 	"gopkg.in/gin-gonic/gin.v1"
 )
 
+func runCommand(args []string) {
+	cmd := exec.Command("cmd", args...)
+	cmd.Run()
+}
+
 func DeployPOST(c *gin.Context) {
-	cmd := exec.Command("cmd", "go", "get", "-v")
-	cmd.Stdin = strings.NewReader("github.com/subsystemio/subsystem")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		c.JSON(500, gin.H{
-			"error": "Failed to load SubSystem data.",
-		})
-		log.Fatal(err)
-	}
-	c.String(200, out.String())
-	fmt.Printf("in all caps: %q\n", out.String())
+	runCommand([]string{"/k", "go", "get", "github.com/subsystemio/sub-hello"})
+	go runCommand([]string{"/k", "sub-hello"})
+
+	log.Printf("Started %v\n", "sub-hello")
 }
 
 func SubSystemPOST(c *gin.Context) {
