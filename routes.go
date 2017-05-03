@@ -4,7 +4,6 @@ import (
 	"log"
 	"os/exec"
 
-	"github.com/subsystemio/subsystem"
 	"gopkg.in/gin-gonic/gin.v1"
 )
 
@@ -13,7 +12,7 @@ func runCommand(args []string) {
 	cmd.Run()
 }
 
-func DeployPOST(c *gin.Context) {
+func (s *Server) DeployPOST(c *gin.Context) {
 	runCommand([]string{"/k", "go", "get", "github.com/subsystemio/sub-hello"})
 	go runCommand([]string{"/k", "sub-hello"})
 

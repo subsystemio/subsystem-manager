@@ -1,52 +1,113 @@
 package main
 
 import (
-	"time"
+	"encoding/json"
+	"io"
+	"log"
+	"net"
+	"os/exec"
 
-	"github.com/subsystemio/subsystem"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 )
 
-var (
-	subsystems map[string]SubSystem.SubSystem
-)
+// only needed below for sample processing
 
-//StartCheck checks for SubSystems that haven't reported in for 10 seconds.
-func StartCheck() chan bool {
-	stop := make(chan bool)
+type Server struct {
+	Connections map[string]net.Conn
+}
 
-	ticker := time.NewTicker(5 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				for _, sub := range subsystems {
-					//Check if LastCheck was more than 10 seconds ago.
-					if err := sub.HealthCheck(); err != nil {
-						delete(subsystems, sub.Data.Name)
-					}
-				}
-			case <-stop:
-				ticker.Stop()
-				return
-			}
+type Message struct {
+	Action string
+	Data   string
+}
+
+func (s *Server) HandleConnection(conn net.Conn) {
+	enc := json.NewEncoder(conn)
+	dec := json.NewDecoder(conn)
+
+	var message Message
+	dec.Decode(&message)
+
+	log.Println("First:", message.Data)
+	enc.Encode(Message{Action: "Message", Data: "Reply"})
+	s.Connections[message.Data] = conn
+
+	for {
+		err := dec.Decode(&message)
+		if err == io.EOF {
+			log.Println("Disconnected")
+			conn.Close()
+			return
 		}
-	}()
 
-	return stop
+		switch message.Action {
+		case "Message":
+			log.Println("Message:", message.Data)
+			enc.Encode(message)
+		case "Close":
+			conn.Close()
+		}
+	}
+}
+func (s *Server) Listen() error {
+	ln, err := net.Listen("tcp", ":8081")
+	if err != nil {
+		return err
+	}
+
+	defer ln.Close()
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return err
+		}
+
+		go s.HandleConnection(conn)
+	}
+
+}
+
+func (s *Server) Run() {
+	s.Listen()
+}
+
+func NewServer() *Server {
+	server := &Server{
+		Connections: make(map[string]net.Conn),
+	}
+
+	return server
+}
+
+func runCommand(args []string) {
+	cmd := exec.Command("cmd", args...)
+	cmd.Run()
 }
 
 func main() {
-	subsystems = make(map[string]SubSystem.SubSystem)
-	StartCheck()
+
+	log.Println("Launching server...")
+	server := NewServer()
 
 	r := gin.Default()
 
 	v1 := r.Group("/v1")
 	{
-		v1.POST("/deploy", DeployPOST)
-		v1.POST("/subsystems", SubSystemPOST)
+		v1.POST("/subsystems", func(c *gin.Context) {
+			runCommand([]string{"/k", "go", "get", "github.com/subsystemio/sub-hello"})
+
+			sub := new(SubSystem.SubSystem)
+
+			go runCommand([]string{"/k", "sub-hello"})
+
+			log.Printf("Started %v\n", "sub-hello")
+		})
+		v1.GET("/subsystems", func(c *gin.Context) {
+			c.JSON(200, server.Connections)
+		})
 	}
 
-	r.Run("localhost:8080") // listen and serve on 0.0.0.0:8080
+	go server.Run()
+	r.Run("localhost:8080")
 }
